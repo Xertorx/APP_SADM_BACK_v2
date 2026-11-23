@@ -10,9 +10,12 @@ quarkus:
     root-path: SADM
     cors:
       enabled: true
-      origins: '*'
+      origins: ${CORS_ORIGINS:https://appsadm.vercel.app,http://localhost:4200}
+      methods: GET,POST,PUT,DELETE,OPTIONS
+      headers: Content-Type,Authorization,X-Requested-With
     limits:
       max-body-size: 35M
+
 
   # Base de datos
   datasource:
@@ -50,7 +53,7 @@ quarkus:
       rotation:
         max-file-size: 5M # Tamaño máximo
         max-backup-index: 5 # Archivos conservados
-        file-suffix: yyyy-MM-dd # Sufijo de rotación
+        file-suffix: yyyy-MM-dd #Sufijo de retación
 
   swagger-ui:
     enabled: true
@@ -81,15 +84,6 @@ app:
       file:
         enabled: false
 
-# Perfil dev: deshabilita el log a archivo. El hot-reload de Quarkus dev mode
-# reinicializa el logging en cada cambio y, en Windows, el archivo puede seguir
-# bloqueado por el proceso anterior, provocando FileSystemException al rotar/renombrar.
-"%dev":
-  quarkus:
-    log:
-      file:
-        enabled: false
-
 # Perfil de pruebas: base efímera independiente de las credenciales locales.
 "%test":
   app:
@@ -106,3 +100,7 @@ app:
     hibernate-orm:
       schema-management:
         strategy: drop-and-create
+
+# Perfil dev: deshabilita el log a archivo. El hot-reload de Quarkus dev mode
+# reinicializa el logging en cada cambio y, en Windows, el archivo puede seguir
+# bloqueado por el proceso anterior, provocando FileSystemException al rotar/renombrar.
