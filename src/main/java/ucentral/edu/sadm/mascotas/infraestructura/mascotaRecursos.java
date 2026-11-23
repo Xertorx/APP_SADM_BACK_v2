@@ -193,7 +193,8 @@ public class mascotaRecursos {
             description = "Solo mascotas DISPONIBLES. Sin distinguir mayúsculas ni tildes. Filtros distintos con lógica Y; "
                     + "valores repetidos de especie/edad/tamano con lógica O; temperamento exige todos los marcados. "
                     + "HU10: si se envían lat y lon (las dos o ninguna) cada resultado trae distanciaKm y se ordena "
-                    + "de menor a mayor; las mascotas sin coordenadas van al final con distanciaKm = null"
+                    + "de menor a mayor; las mascotas sin coordenadas van al final con distanciaKm = null. "
+                    + "Con token, se excluyen las mascotas publicadas por el propio usuario"
     )
     public Response buscar(
             @QueryParam("nombre") String nombre,
@@ -205,19 +206,27 @@ public class mascotaRecursos {
             @QueryParam("lat") Double lat,
             @QueryParam("lon") Double lon
     ) {
+        Long usuarioId = usuarioAutenticadoId();
         if (mascotaBusquedaServicio.usaGeolocalizacion(lat, lon)) {
             return Response.ok(mascotaBusquedaServicio.buscarCercanas(
-                    nombre, especie, raza, edad, tamano, temperamento, lat, lon)).build();
+                    nombre, especie, raza, edad, tamano, temperamento, lat, lon, usuarioId)).build();
         }
         // Sin lat/lon: comportamiento de HU08/HU09 intacto.
-        return Response.ok(mascotaBusquedaServicio.buscar(nombre, especie, raza, edad, tamano, temperamento)).build();
+        return Response.ok(mascotaBusquedaServicio.buscar(
+                nombre, especie, raza, edad, tamano, temperamento, usuarioId)).build();
     }
 
     @GET
     @Path("/razas")
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Listar las razas de las mascotas disponibles de una especie")
+    @Operation(summary = "Listar las razas de las mascotas disponibles de una especie "
+            + "(con token, sin contar las del propio usuario)")
     public List<String> razas(@QueryParam("especie") String especie) {
-        return mascotaBusquedaServicio.razasPorEspecie(especie);
+        return mascotaBusquedaServicio.razasPorEspecie(especie, usuarioAutenticadoId());
+    }
+
+    /** Ajuste demo: id del usuario del token en rutas públicas; null si la petición no trae token. */
+    private Long usuarioAutenticadoId() {
+        return securityIdentity.isAnonymous() ? null : securityIdentity.getAttribute("userId");
     }
 }
