@@ -18,5 +18,5 @@ services:
         sync: false
       - key: JWT_EXPIRATION_SECONDS
         value: "900"
-      - key: QUARKUS_LOG_FILE_ENABLE
+      - key: QUARKUS_LOG_FILE_ENABLED
         value: "false"

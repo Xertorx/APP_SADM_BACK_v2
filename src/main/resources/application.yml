@@ -8,10 +8,11 @@ quarkus:
     port: ${PORT:8862}
     host: localhost
     root-path: SADM
-    cors: true
-    cors-origins: '*'
-    cors-methods: GET,POST,PUT,DELETE,OPTIONS
-    cors-headers: Content-Type,Authorization,X-Requested-With
+    cors:
+      enabled: true
+      origins: '*'
+      methods: GET,POST,PUT,DELETE,OPTIONS
+      headers: Content-Type,Authorization,X-Requested-With
     limits:
       max-body-size: 35M
 
@@ -75,6 +76,13 @@ app:
   jwt:
     secret: ${JWT_SECRET}
     expiration-seconds: ${JWT_EXPIRATION_SECONDS:900}
+
+# Perfil prod: el contenedor no tiene directorio logs/ escribible; se loguea solo a consola.
+"%prod":
+  quarkus:
+    log:
+      file:
+        enabled: false
 
 # Perfil de pruebas: base efímera independiente de las credenciales locales.
 "%test":
