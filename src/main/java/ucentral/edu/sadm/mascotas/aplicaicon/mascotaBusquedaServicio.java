@@ -38,15 +38,17 @@ public class mascotaBusquedaServicio {
     @Inject
     mascotaServicio mascotaServicio;
 
+    /** excluirDadorId: id del usuario autenticado para no mostrarle sus propias mascotas (null = no excluir). */
     public List<mascotaDetalleEntidad> buscar(
             String nombre,
             List<String> especies,
             String raza,
             List<String> edades,
             List<String> tamanos,
-            List<String> temperamentos
+            List<String> temperamentos,
+            Long excluirDadorId
     ) {
-        return filtrar(nombre, especies, raza, edades, tamanos, temperamentos).stream()
+        return filtrar(nombre, especies, raza, edades, tamanos, temperamentos, excluirDadorId).stream()
                 .sorted(PORMAS_RECIENTE)
                 .map(mascotaServicio::convertirDetalle)
                 .toList();
@@ -65,9 +67,10 @@ public class mascotaBusquedaServicio {
             List<String> tamanos,
             List<String> temperamentos,
             double lat,
-            double lon
+            double lon,
+            Long excluirDadorId
     ) {
-        return filtrar(nombre, especies, raza, edades, tamanos, temperamentos).stream()
+        return filtrar(nombre, especies, raza, edades, tamanos, temperamentos, excluirDadorId).stream()
                 .map(m -> new Object[]{m, distanciaA(m, lat, lon)})
                 .sorted(Comparator
                         .comparing((Object[] par) -> (Double) par[1], Comparator.nullsLast(Comparator.naturalOrder()))
@@ -113,7 +116,8 @@ public class mascotaBusquedaServicio {
             String raza,
             List<String> edades,
             List<String> tamanos,
-            List<String> temperamentos
+            List<String> temperamentos,
+            Long excluirDadorId
     ) {
         List<String> especiesValidas = validar(especies, ESPECIES, "La especie debe ser PERRO, GATO u OTRO");
         List<String> tamanosValidos = validar(tamanos, TAMANOS, "El tamaño debe ser PEQUENO, MEDIANO o GRANDE");
@@ -126,6 +130,7 @@ public class mascotaBusquedaServicio {
         // Estado, especie y tamaño van en la consulta; el resto se filtra en Java
         // porque la BD compartida no tiene la extensión unaccent.
         return mascotaRepositorio.listarDisponibles(especiesValidas, tamanosValidos).stream()
+                .filter(m -> noEsDelUsuario(m, excluirDadorId))
                 .filter(m -> nombreBuscado.isEmpty() || textoNormalizado.normalizar(m.nombre).contains(nombreBuscado))
                 .filter(m -> razaBuscada.isEmpty() || textoNormalizado.normalizar(m.raza).equals(razaBuscada))
                 .filter(m -> rangos.isEmpty() || coincideEdad(m, rangos))
@@ -135,7 +140,7 @@ public class mascotaBusquedaServicio {
     }
 
     /** Razas distintas (ignorando mayúsculas/tildes) de las mascotas DISPONIBLES de una especie. */
-    public List<String> razasPorEspecie(String especie) {
+    public List<String> razasPorEspecie(String especie, Long excluirDadorId) {
         if (especie == null || especie.isBlank()) {
             return List.of();
         }
@@ -143,6 +148,9 @@ public class mascotaBusquedaServicio {
 
         Map<String, String> porClave = new LinkedHashMap<>();
         for (mascota m : mascotaRepositorio.listarDisponibles(especiesValidas, List.of())) {
+            if (!noEsDelUsuario(m, excluirDadorId)) {
+                continue;
+            }
             String clave = textoNormalizado.normalizar(m.raza);
             if (!clave.isEmpty()) {
                 porClave.putIfAbsent(clave, m.raza.trim());
@@ -153,6 +161,11 @@ public class mascotaBusquedaServicio {
                 .sorted(Map.Entry.comparingByKey())
                 .forEach(e -> razas.add(e.getValue()));
         return razas;
+    }
+
+    /** Ajuste demo: quien busca autenticado no ve sus propias publicaciones en "Adoptar una mascota". */
+    private static boolean noEsDelUsuario(mascota m, Long excluirDadorId) {
+        return excluirDadorId == null || m.dador == null || !excluirDadorId.equals(m.dador.id);
     }
 
     private boolean coincideEdad(mascota m, List<rangoEdad> rangos) {
