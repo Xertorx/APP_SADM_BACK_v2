@@ -3,6 +3,7 @@ package ucentral.edu.sadm.postulacionesMascotas.aplicaicon;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import ucentral.edu.sadm.mascotas.dominio.fotoMascotaRepositorio;
+import ucentral.edu.sadm.postulacionesMascotas.dominio.estadoPostulacion;
 import ucentral.edu.sadm.postulacionesMascotas.dominio.estadoVisiblePostulacion;
 import ucentral.edu.sadm.postulacionesMascotas.dominio.postulacion;
 import ucentral.edu.sadm.postulacionesMascotas.dominio.postulacionRepositorio;
@@ -78,9 +79,22 @@ public class misPostulacionesServicio {
                 p.puntaje == null ? 0 : p.puntaje,
                 visible.name(),
                 visible.getEtiqueta(),
-                p.estado == null ? null : p.estado.getEtiqueta(),
-                p.updated_at
+                detalle(p),
+                p.updated_at,
+                p.estado == null ? null : p.estado.name()
         );
+    }
+
+    /** Al descartar en la etapa 1 se muestra el comentario del dador como motivo. */
+    private String detalle(postulacion p) {
+        if (p.estado == null) {
+            return null;
+        }
+        if (p.estado == estadoPostulacion.DESCARTADA_ETAPA_1
+                && p.comentario_evaluacion != null && !p.comentario_evaluacion.isBlank()) {
+            return p.comentario_evaluacion;
+        }
+        return p.estado.getEtiqueta();
     }
 
     /** Solo nombre y apellido: nunca correo ni teléfono. */

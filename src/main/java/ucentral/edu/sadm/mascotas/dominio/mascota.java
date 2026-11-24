@@ -52,6 +52,10 @@ public class mascota extends PanacheEntity {
 
     // HU10: coordenadas opcionales (nullable para no romper filas viejas ni HU06). Redondeadas a 3 decimales.
     // Nunca se devuelven en endpoints públicos: solo se usan para calcular distanciaKm.
+    /** Motivo que dio el administrador al rechazar la publicación. */
+    @Column(name = "motivo_rechazo", length = 500)
+    public String motivo_rechazo;
+
     @Column(name = "latitud")
     public Double latitud;
 

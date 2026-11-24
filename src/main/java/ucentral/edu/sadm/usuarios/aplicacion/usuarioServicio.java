@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Locale;
 
 @ApplicationScoped
-public class usuarioServicio {
+public class    usuarioServicio {
 
     @Inject
     usuarioRepositorio usuarioRepositorio;

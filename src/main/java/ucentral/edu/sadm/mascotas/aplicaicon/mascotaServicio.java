@@ -309,7 +309,7 @@ public class mascotaServicio {
 
         // Se cargan las entidades (no update masivo) para que corra @PreUpdate.
         List<postulacion> activas = postulacionRepositorio.list(
-                "mascota.id = ?1 and estado = ?2", id, estadoPostulacion.ETAPA_1_EN_CURSO);
+                "mascota.id = ?1 and estado in ?2", id, estadoPostulacion.ACTIVOS);
         for (postulacion p : activas) {
             p.estado = estadoPostulacion.CANCELADA_POR_DADOR;
         }
@@ -321,7 +321,7 @@ public class mascotaServicio {
 
     private long contarPostulacionesActivas(Long mascotaId) {
         return postulacionRepositorio.count(
-                "mascota.id = ?1 and estado = ?2", mascotaId, estadoPostulacion.ETAPA_1_EN_CURSO);
+                "mascota.id = ?1 and estado in ?2", mascotaId, estadoPostulacion.ACTIVOS);
     }
 
     // Mismo patrón que buscarMascotaPropietario, con el mensaje 403 propio de eliminar.

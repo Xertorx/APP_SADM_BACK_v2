@@ -45,6 +45,18 @@ public class postulacion extends PanacheEntity {
     @Column(nullable = false)
     public Integer puntaje = 0;
 
+    /** Etapa 1: momento en que el adoptante envió el formulario. */
+    @Column(name = "fecha_envio_formulario")
+    public Instant fecha_envio_formulario;
+
+    /** Etapa 1: momento en que el dador calificó el formulario. */
+    @Column(name = "fecha_evaluacion_formulario")
+    public Instant fecha_evaluacion_formulario;
+
+    /** Etapa 1: observación del dador al aprobar o descartar (obligatoria al descartar). */
+    @Column(name = "comentario_evaluacion", length = 1000)
+    public String comentario_evaluacion;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     public Instant created_at;
 

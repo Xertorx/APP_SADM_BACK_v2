@@ -24,10 +24,10 @@ import java.util.Locale;
 public class postulacionServicio {
     private static final String UNIQUE_CONSTRAINT = "uk_postulacion_adoptante_mascota";
     private static final List<postulacionEntidad.EtapaProceso> ETAPAS = List.of(
-            new postulacionEntidad.EtapaProceso("Revisión inicial", "Validación de los datos y requisitos del adoptante."),
-            new postulacionEntidad.EtapaProceso("Evaluación del hogar", "Revisión de las condiciones para el bienestar de la mascota."),
-            new postulacionEntidad.EtapaProceso("Entrevista", "Conversación con el adoptante para conocer su motivación y experiencia."),
-            new postulacionEntidad.EtapaProceso("Decisión de adopción", "Comunicación de la decisión final del proceso.")
+            new postulacionEntidad.EtapaProceso("Formulario", "Respondes las preguntas que definió el dador; él las califica."),
+            new postulacionEntidad.EtapaProceso("Documentos", "Envías los documentos que solicita el dador."),
+            new postulacionEntidad.EtapaProceso("Entrevista", "Conversación con el dador para conocer tu motivación y experiencia."),
+            new postulacionEntidad.EtapaProceso("Visita", "Visita domiciliaria para revisar las condiciones del hogar.")
     );
 
     @Inject

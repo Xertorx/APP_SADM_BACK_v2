@@ -21,6 +21,8 @@ public record miPostulacionEntidad(
         String estado,
         String estadoEtiqueta,
         String estadoDetalle,
-        Instant fechaActualizacion
+        Instant fechaActualizacion,
+        /** Estado interno (p. ej. ETAPA_1_EN_CURSO) para saber qué acción mostrar. */
+        String estadoCodigo
 ) {
 }
