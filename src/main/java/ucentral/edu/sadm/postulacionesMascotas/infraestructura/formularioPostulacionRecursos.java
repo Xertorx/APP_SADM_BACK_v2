@@ -68,7 +68,7 @@ public class formularioPostulacionRecursos {
     @Consumes(MediaType.APPLICATION_JSON)
     @Operation(
             summary = "Enviar el formulario de la etapa 1",
-            description = "Guarda las respuestas, exige todas las preguntas respondidas y deja la postulación en ETAPA_1_EN_EVALUACION"
+            description = "Guarda las respuestas, exige todas las preguntas respondidas y pasa la postulación a la etapa 2 (ETAPA_2_EN_CURSO)"
     )
     @APIResponse(responseCode = "200", description = "Formulario enviado")
     @APIResponse(responseCode = "400", description = "Formulario incompleto o respuesta inválida")
@@ -77,7 +77,7 @@ public class formularioPostulacionRecursos {
             @PathParam("postulacionId") Long postulacionId,
             formularioRespuestasSolicitud solicitud
     ) {
-        return Response.ok(new ResponseApi<>(200, "Formulario enviado. El dador revisará tus respuestas.",
+        return Response.ok(new ResponseApi<>(200, "¡Formulario enviado! Tus respuestas quedaron guardadas y pasaste a la etapa 2: Documentos.",
                 servicio.guardar(postulacionId, correo(), solicitud, true))).build();
     }
 
@@ -101,7 +101,7 @@ public class formularioPostulacionRecursos {
     @Consumes(MediaType.APPLICATION_JSON)
     @Operation(
             summary = "Calificar el formulario y decidir la etapa 1 (dador)",
-            description = "Puntaje 0..máximo por pregunta respondida. decision APROBAR pasa a ETAPA_2_EN_CURSO; DESCARTAR (con comentario) pasa a DESCARTADA_ETAPA_1"
+            description = "Puntaje 0..máximo por pregunta respondida. decision APROBAR guarda la calificación y el postulante sigue en el proceso; DESCARTAR (con comentario) pasa a DESCARTADA_ETAPA_1"
     )
     @APIResponse(responseCode = "200", description = "Evaluación registrada")
     @APIResponse(responseCode = "400", description = "Calificaciones incompletas, fuera de rango o falta el comentario")

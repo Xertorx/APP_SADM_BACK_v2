@@ -11,6 +11,7 @@ public record postulanteEntidad(
         String estado,
         String estadoEtiqueta,
         int etapaActual,
+        String etapaNombre,
         int puntaje,
         boolean formularioEnviado,
         Instant fechaEnvioFormulario,

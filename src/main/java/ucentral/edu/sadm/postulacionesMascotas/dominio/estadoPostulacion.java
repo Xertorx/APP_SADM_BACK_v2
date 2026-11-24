@@ -5,9 +5,9 @@ import java.util.List;
 public enum estadoPostulacion {
     /** Etapa 1: el adoptante debe diligenciar el formulario de preguntas. */
     ETAPA_1_EN_CURSO("Etapa 1 en curso"),
-    /** Etapa 1: el adoptante envió el formulario y el dador debe calificarlo. */
+    /** Flujo anterior: formulario enviado esperando al dador. Hoy al enviar se pasa directo a la etapa 2. */
     ETAPA_1_EN_EVALUACION("Etapa 1 en evaluación"),
-    /** El dador aprobó la etapa 1; la postulación pasa a la etapa 2 (documentos). */
+    /** El adoptante envió el formulario: está en la etapa 2 (documentos). El dador puede calificar sus respuestas. */
     ETAPA_2_EN_CURSO("Etapa 2 en curso"),
     /** El dador descartó la postulación al evaluar el formulario. */
     DESCARTADA_ETAPA_1("Descartada en la etapa 1"),

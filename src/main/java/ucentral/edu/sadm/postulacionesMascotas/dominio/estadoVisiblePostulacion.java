@@ -15,6 +15,14 @@ public enum estadoVisiblePostulacion {
 
     public static final int TOTAL_ETAPAS = 4;
 
+    /** Nombres de las etapas, en orden (iguales a los del front). */
+    public static final java.util.List<String> NOMBRES_ETAPAS =
+            java.util.List.of("Formulario", "Documentos", "Entrevista", "Visita");
+
+    public static String nombreEtapa(int etapa) {
+        return etapa >= 1 && etapa <= NOMBRES_ETAPAS.size() ? NOMBRES_ETAPAS.get(etapa - 1) : "Etapa " + etapa;
+    }
+
     private static final Pattern ETAPA = Pattern.compile("^ETAPA_(\\d+)_");
 
     private final String etiqueta;

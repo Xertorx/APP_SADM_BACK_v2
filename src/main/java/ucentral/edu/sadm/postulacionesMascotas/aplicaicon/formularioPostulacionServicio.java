@@ -41,9 +41,11 @@ import java.util.Set;
  * Etapa 1 del proceso de adopción: formulario de preguntas.
  * <ol>
  *   <li>El adoptante responde las preguntas que configuró el dador (borrador y envío).</li>
- *   <li>Al enviar, la postulación pasa a ETAPA_1_EN_EVALUACION y ya no se puede editar.</li>
- *   <li>El dador califica cada respuesta (0..puntaje de la pregunta) y decide: APROBAR
- *       (ETAPA_2_EN_CURSO) o DESCARTAR (DESCARTADA_ETAPA_1, con comentario obligatorio).</li>
+ *   <li>Al enviar, las respuestas quedan guardadas, el formulario ya no se puede editar y la
+ *       postulación pasa directamente a la etapa 2 (ETAPA_2_EN_CURSO).</li>
+ *   <li>El dador revisa las respuestas y las califica (0..puntaje de la pregunta). Puede
+ *       mantener al postulante en el proceso o DESCARTARLO (DESCARTADA_ETAPA_1, con comentario).</li>
+ *   <li>ETAPA_1_EN_EVALUACION queda solo para postulaciones antiguas enviadas con el flujo anterior.</li>
  * </ol>
  */
 @ApplicationScoped
@@ -152,7 +154,7 @@ public class formularioPostulacionServicio {
                                 : "Faltan " + faltantes + " preguntas por responder",
                         "Debes responder todas las preguntas antes de enviar el formulario");
             }
-            postulacion.estado = estadoPostulacion.ETAPA_1_EN_EVALUACION;
+            postulacion.estado = estadoPostulacion.ETAPA_2_EN_CURSO;
             postulacion.fecha_envio_formulario = Instant.now();
         }
 
@@ -182,10 +184,11 @@ public class formularioPostulacionServicio {
                         p.estado.name(),
                         p.estado.getEtiqueta(),
                         estadoVisiblePostulacion.etapaDe(p.estado),
+                        estadoVisiblePostulacion.nombreEtapa(estadoVisiblePostulacion.etapaDe(p.estado)),
                         p.puntaje == null ? 0 : p.puntaje,
                         p.fecha_envio_formulario != null,
                         p.fecha_envio_formulario,
-                        p.estado == estadoPostulacion.ETAPA_1_EN_EVALUACION
+                        pendienteDeCalificar(p)
                 ))
                 .toList();
     }
@@ -203,10 +206,10 @@ public class formularioPostulacionServicio {
             evaluacionFormularioSolicitud solicitud
     ) {
         postulacion postulacion = buscarDelDador(postulacionId, correoDador);
-        if (postulacion.estado != estadoPostulacion.ETAPA_1_EN_EVALUACION) {
+        if (!pendienteDeCalificar(postulacion)) {
             throw error(409, "FORMULARIO_NO_EVALUABLE",
-                    "Este formulario no está pendiente de evaluación",
-                    "Solo se evalúan formularios enviados por el adoptante y aún sin calificar");
+                    "Este formulario no está pendiente de calificación",
+                    "Solo se califican formularios enviados por el adoptante, aún sin calificar y con la postulación activa");
         }
         if (solicitud == null) {
             throw error(400, "EVALUACION_INVALIDA", "La evaluación es obligatoria", "El cuerpo no puede estar vacío");
@@ -273,9 +276,12 @@ public class formularioPostulacionServicio {
         postulacion.puntaje = total;
         postulacion.comentario_evaluacion = comentario;
         postulacion.fecha_evaluacion_formulario = Instant.now();
-        postulacion.estado = decision.equals("APROBAR")
-                ? estadoPostulacion.ETAPA_2_EN_CURSO
-                : estadoPostulacion.DESCARTADA_ETAPA_1;
+        if (decision.equals("DESCARTAR")) {
+            postulacion.estado = estadoPostulacion.DESCARTADA_ETAPA_1;
+        } else if (postulacion.estado == estadoPostulacion.ETAPA_1_EN_EVALUACION) {
+            // Postulaciones del flujo anterior: al aprobar pasan a la etapa 2.
+            postulacion.estado = estadoPostulacion.ETAPA_2_EN_CURSO;
+        }
 
         postulacionRepositorio.flush();
         return convertirEvaluacion(postulacion, preguntas, respuestas);
@@ -443,6 +449,8 @@ public class formularioPostulacionServicio {
                 postulacion.mascota.nombre,
                 postulacion.estado.name(),
                 postulacion.estado.getEtiqueta(),
+                estadoVisiblePostulacion.etapaDe(postulacion.estado),
+                estadoVisiblePostulacion.nombreEtapa(estadoVisiblePostulacion.etapaDe(postulacion.estado)),
                 editable,
                 postulacion.fecha_envio_formulario != null,
                 postulacion.fecha_envio_formulario,
@@ -454,10 +462,11 @@ public class formularioPostulacionServicio {
     }
 
     private evaluacionFormularioEntidad convertirEvaluacion(postulacion postulacion) {
+        // El dador solo ve las respuestas cuando el adoptante envió el formulario (no los borradores).
         return convertirEvaluacion(
                 postulacion,
                 preguntasDe(postulacion.mascota.id),
-                respuestasPorPregunta(postulacion.id));
+                postulacion.fecha_envio_formulario == null ? Map.of() : respuestasPorPregunta(postulacion.id));
     }
 
     private evaluacionFormularioEntidad convertirEvaluacion(
@@ -488,7 +497,9 @@ public class formularioPostulacionServicio {
                 nombreCompleto(postulacion.adoptante),
                 postulacion.estado.name(),
                 postulacion.estado.getEtiqueta(),
-                postulacion.estado == estadoPostulacion.ETAPA_1_EN_EVALUACION,
+                estadoVisiblePostulacion.etapaDe(postulacion.estado),
+                estadoVisiblePostulacion.nombreEtapa(estadoVisiblePostulacion.etapaDe(postulacion.estado)),
+                pendienteDeCalificar(postulacion),
                 postulacion.fecha_envio_formulario,
                 postulacion.fecha_evaluacion_formulario,
                 etapa == null || etapa.puntajeMaximo == null ? 0 : etapa.puntajeMaximo,
@@ -496,6 +507,14 @@ public class formularioPostulacionServicio {
                 postulacion.comentario_evaluacion,
                 items
         );
+    }
+
+    /** Formulario enviado, aún sin calificar y con la postulación todavía activa. */
+    private boolean pendienteDeCalificar(postulacion p) {
+        return p.fecha_envio_formulario != null
+                && p.fecha_evaluacion_formulario == null
+                && (p.estado == estadoPostulacion.ETAPA_1_EN_EVALUACION
+                || p.estado == estadoPostulacion.ETAPA_2_EN_CURSO);
     }
 
     private boolean estaDisponible(mascota mascota) {

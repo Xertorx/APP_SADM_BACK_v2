@@ -15,6 +15,8 @@ public record formularioPostulacionEntidad(
         String mascotaNombre,
         String estado,
         String estadoEtiqueta,
+        int etapaActual,
+        String etapaNombre,
         boolean editable,
         boolean enviado,
         Instant fechaEnvio,

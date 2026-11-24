@@ -14,6 +14,8 @@ public record evaluacionFormularioEntidad(
         String adoptanteNombre,
         String estado,
         String estadoEtiqueta,
+        int etapaActual,
+        String etapaNombre,
         boolean evaluable,
         Instant fechaEnvio,
         Instant fechaEvaluacion,
