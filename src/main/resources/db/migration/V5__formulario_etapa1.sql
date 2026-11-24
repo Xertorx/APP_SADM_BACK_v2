@@ -6,8 +6,6 @@ ALTER TABLE postulacion ADD COLUMN IF NOT EXISTS fecha_envio_formulario TIMESTAM
 ALTER TABLE postulacion ADD COLUMN IF NOT EXISTS fecha_evaluacion_formulario TIMESTAMP WITH TIME ZONE;
 ALTER TABLE postulacion ADD COLUMN IF NOT EXISTS comentario_evaluacion VARCHAR(1000);
 
-ALTER TABLE mascota ADD COLUMN IF NOT EXISTS motivo_rechazo VARCHAR(500);
-
 CREATE TABLE IF NOT EXISTS respuesta_formulario (
     id BIGINT PRIMARY KEY,
     postulacion_id BIGINT NOT NULL,
