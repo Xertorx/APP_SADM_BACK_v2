@@ -19,6 +19,7 @@ import ucentral.edu.sadm.common.infraestructure.ResponseApi;
 import ucentral.edu.sadm.seleccion.aplicacion.configuracionSeleccionServicio;
 import ucentral.edu.sadm.seleccion.infraestructura.dto.configuracionSeleccionEntidad;
 import ucentral.edu.sadm.seleccion.infraestructura.dto.configuracionSeleccionSolicitud;
+import ucentral.edu.sadm.seleccion.infraestructura.dto.preguntasFormularioEntidad;
 
 @Path("/api/mascotas/{mascotaId}/configuracion-seleccion")
 @Produces(MediaType.APPLICATION_JSON)
@@ -64,6 +65,33 @@ public class configuracionSeleccionRecursos {
     public Response finalizar(@PathParam("mascotaId") Long mascotaId) {
         configuracionSeleccionEntidad datos = configuracionServicio.finalizar(mascotaId, correoDador());
         return Response.ok(new ResponseApi<>(200, "Configuración finalizada correctamente", datos)).build();
+    }
+
+    @GET
+    @Path("/preguntas")
+    @Operation(
+            summary = "Consultar las preguntas del formulario (etapa 1)",
+            description = "Incluye si el dador todavía puede cambiarlas: mascota en revisión o disponible y ningún formulario enviado"
+    )
+    public Response consultarPreguntas(@PathParam("mascotaId") Long mascotaId) {
+        preguntasFormularioEntidad datos = configuracionServicio.consultarPreguntasFormulario(mascotaId, correoDador());
+        return Response.ok(new ResponseApi<>(200, "Preguntas consultadas", datos)).build();
+    }
+
+    @PUT
+    @Path("/preguntas")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Operation(
+            summary = "Definir las preguntas del formulario de una mascota publicada",
+            description = "Reemplaza las preguntas de la etapa 1 sin tocar las demás etapas. Se rechaza (409) si algún adoptante ya envió el formulario"
+    )
+    public Response guardarPreguntas(
+            @PathParam("mascotaId") Long mascotaId,
+            @NotNull @Valid configuracionSeleccionSolicitud.etapaPreguntas solicitud
+    ) {
+        preguntasFormularioEntidad datos =
+                configuracionServicio.guardarPreguntasFormulario(mascotaId, correoDador(), solicitud);
+        return Response.ok(new ResponseApi<>(200, "Preguntas del formulario guardadas", datos)).build();
     }
 
     private String correoDador() {

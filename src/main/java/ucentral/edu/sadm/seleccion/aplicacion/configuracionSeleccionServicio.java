@@ -7,6 +7,9 @@ import ucentral.edu.sadm.common.infraestructure.BusinessException;
 import ucentral.edu.sadm.mascotas.dominio.exception.MascotaNoEncontradaException;
 import ucentral.edu.sadm.mascotas.dominio.mascota;
 import ucentral.edu.sadm.mascotas.dominio.mascotaRepositorio;
+import ucentral.edu.sadm.postulacionesMascotas.dominio.postulacionRepositorio;
+import ucentral.edu.sadm.postulacionesMascotas.dominio.respuestaFormulario;
+import ucentral.edu.sadm.postulacionesMascotas.dominio.respuestaFormularioRepositorio;
 import ucentral.edu.sadm.seleccion.dominio.configuracionSeleccion;
 import ucentral.edu.sadm.seleccion.dominio.configuracionSeleccionRepositorio;
 import ucentral.edu.sadm.seleccion.dominio.criterioEvaluacionSeleccion;
@@ -16,6 +19,7 @@ import ucentral.edu.sadm.seleccion.dominio.preguntaSeleccion;
 import ucentral.edu.sadm.seleccion.dominio.tipoEtapaSeleccion;
 import ucentral.edu.sadm.seleccion.infraestructura.dto.configuracionSeleccionEntidad;
 import ucentral.edu.sadm.seleccion.infraestructura.dto.configuracionSeleccionSolicitud;
+import ucentral.edu.sadm.seleccion.infraestructura.dto.preguntasFormularioEntidad;
 import ucentral.edu.sadm.usuarios.dominio.usuario;
 import ucentral.edu.sadm.usuarios.dominio.usuarioRepositorio;
 
@@ -39,6 +43,15 @@ public class configuracionSeleccionServicio {
 
     @Inject
     usuarioRepositorio usuarioRepositorio;
+
+    @Inject
+    postulacionRepositorio postulacionRepositorio;
+
+    @Inject
+    respuestaFormularioRepositorio respuestaFormularioRepositorio;
+
+    /** Estados en los que el dador puede definir las preguntas aunque la configuración esté cerrada. */
+    private static final Set<String> ESTADOS_PREGUNTAS_EDITABLES = Set.of("PENDIENTE_APROBACION", "DISPONIBLE");
 
     @Transactional
     public configuracionSeleccionEntidad consultar(Long mascotaId, String correoDador) {
@@ -116,6 +129,122 @@ public class configuracionSeleccionServicio {
             );
         }
         validarCompleta(configuracion);
+    }
+
+    // ---- Preguntas del formulario (etapa 1) en una mascota ya publicada ----
+
+    /** Preguntas actuales y si el dador todavía puede cambiarlas. */
+    @Transactional
+    public preguntasFormularioEntidad consultarPreguntasFormulario(Long mascotaId, String correoDador) {
+        mascota mascota = buscarMascotaPropietario(mascotaId, correoDador);
+        return convertirPreguntasFormulario(mascota, configuracionRepositorio.buscarPorMascota(mascota.id));
+    }
+
+    /**
+     * Reemplaza las preguntas de la etapa 1 de una mascota publicada (en revisión o disponible).
+     * Solo se permite mientras ningún adoptante haya enviado el formulario: así nadie queda
+     * calificado con preguntas distintas. Las demás etapas y la distribución no cambian; si la
+     * etapa no tenía puntaje (mascotas creadas antes de la configuración) toma la suma de las preguntas.
+     */
+    @Transactional
+    public preguntasFormularioEntidad guardarPreguntasFormulario(
+            Long mascotaId,
+            String correoDador,
+            configuracionSeleccionSolicitud.etapaPreguntas solicitud
+    ) {
+        mascota mascota = buscarMascotaPropietario(mascotaId, correoDador);
+        String bloqueo = motivoBloqueoPreguntas(mascota);
+        if (bloqueo != null) {
+            throw errorConfiguracion(409, "PREGUNTAS_NO_EDITABLES", bloqueo);
+        }
+        List<configuracionSeleccionSolicitud.preguntaSolicitud> elementos =
+                solicitud == null || solicitud.elementos() == null ? List.of() : solicitud.elementos();
+        if (elementos.isEmpty()) {
+            throw errorConfiguracion(400, "ETAPA_SIN_CRITERIOS", "El formulario debe tener al menos una pregunta");
+        }
+        validarIDsUnicos(elementos.stream().map(configuracionSeleccionSolicitud.preguntaSolicitud::id).toList());
+
+        configuracionSeleccion configuracion = configuracionRepositorio.buscarPorMascota(mascota.id);
+        if (configuracion == null) {
+            configuracion = new configuracionSeleccion();
+            configuracion.mascota = mascota;
+            configuracion.definitiva = true;
+            configuracionRepositorio.persist(configuracion);
+            for (tipoEtapaSeleccion tipo : tipoEtapaSeleccion.values()) {
+                etapaSeleccion etapa = new etapaSeleccion();
+                etapa.tipo = tipo;
+                etapa.puntajeMaximo = 0;
+                configuracion.agregarEtapa(etapa);
+            }
+        }
+        etapaSeleccion etapa = indexarEtapas(configuracion).get(tipoEtapaSeleccion.PREGUNTAS);
+        if (etapa == null) {
+            etapa = new etapaSeleccion();
+            etapa.tipo = tipoEtapaSeleccion.PREGUNTAS;
+            etapa.puntajeMaximo = 0;
+            configuracion.agregarEtapa(etapa);
+        }
+
+        int suma = elementos.stream().mapToInt(configuracionSeleccionSolicitud.preguntaSolicitud::puntaje).sum();
+        if (etapa.puntajeMaximo == null || etapa.puntajeMaximo == 0) {
+            if (suma > 100) {
+                throw errorConfiguracion(400, "PUNTAJE_SUPERA_ETAPA",
+                        "La suma de los puntajes de las preguntas no puede superar 100");
+            }
+            etapa.puntajeMaximo = suma;
+        } else if (suma > etapa.puntajeMaximo) {
+            throw errorConfiguracion(400, "PUNTAJE_SUPERA_ETAPA",
+                    "Las preguntas suman " + suma + " puntos y la etapa permite máximo " + etapa.puntajeMaximo);
+        }
+
+        // Borradores de respuestas a preguntas que se eliminan: se quitan antes para no romper la FK.
+        Set<Long> conservadas = new HashSet<>();
+        elementos.stream().map(configuracionSeleccionSolicitud.preguntaSolicitud::id)
+                .filter(id -> id != null).forEach(conservadas::add);
+        for (preguntaSeleccion pregunta : etapa.preguntas) {
+            if (!conservadas.contains(pregunta.id)) {
+                for (respuestaFormulario r : respuestaFormularioRepositorio.list("pregunta.id", pregunta.id)) {
+                    respuestaFormularioRepositorio.delete(r);
+                }
+            }
+        }
+        respuestaFormularioRepositorio.flush();
+
+        actualizarPreguntas(etapa, elementos);
+        configuracionRepositorio.persistAndFlush(configuracion);
+        return convertirPreguntasFormulario(mascota, configuracion);
+    }
+
+    /** null si se pueden editar las preguntas; si no, el motivo para mostrar al dador. */
+    private String motivoBloqueoPreguntas(mascota mascota) {
+        if ("BORRADOR_CONFIGURACION".equals(mascota.estado)) {
+            return "La mascota está en borrador: edita las preguntas desde la configuración del proceso de selección";
+        }
+        if (!ESTADOS_PREGUNTAS_EDITABLES.contains(mascota.estado)) {
+            return "Las preguntas solo se pueden cambiar mientras la mascota está en revisión o disponible";
+        }
+        long enviados = postulacionRepositorio.count(
+                "mascota.id = ?1 and fecha_envio_formulario is not null", mascota.id);
+        if (enviados > 0) {
+            return enviados == 1
+                    ? "Un adoptante ya envió el formulario; las preguntas no se pueden cambiar"
+                    : enviados + " adoptantes ya enviaron el formulario; las preguntas no se pueden cambiar";
+        }
+        return null;
+    }
+
+    private preguntasFormularioEntidad convertirPreguntasFormulario(mascota mascota, configuracionSeleccion configuracion) {
+        etapaSeleccion etapa = configuracion == null ? null : indexarEtapas(configuracion).get(tipoEtapaSeleccion.PREGUNTAS);
+        configuracionSeleccionEntidad.etapaPreguntas preguntas = convertirPreguntas(etapa);
+        String motivo = motivoBloqueoPreguntas(mascota);
+        return new preguntasFormularioEntidad(
+                mascota.id,
+                mascota.estado,
+                motivo == null,
+                motivo,
+                preguntas.puntajeMaximo(),
+                preguntas.elementos()
+        );
     }
 
     private mascota buscarMascotaPropietario(Long mascotaId, String correoDador) {
